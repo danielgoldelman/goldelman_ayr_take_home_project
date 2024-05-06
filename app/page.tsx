@@ -1,113 +1,195 @@
-import Image from "next/image";
+"use client";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import Footer from "./utils/footer";
+import HomeHeader from "./utils/homeHeader";
 
 export default function Home() {
+  const [username, setUsername] = useState<string>("");
+  const [userClicks, setUserClicks] = useState<number>(0);
+  const [totalClicks, setTotalClicks] = useState<number>(0);
+  const router = useRouter();
+
+  useEffect(() => {
+    /**
+     * Sets up the page by fetching global data and initializing user data.
+     *
+     * @returns {Promise<void>}
+     */
+    async function setup(): Promise<void> {
+      window.addEventListener("beforeunload", () => {
+        sessionStorage.clear();
+      });
+      try {
+        const response = await fetch("/api/global", { cache: "no-cache" });
+        const data = await response.json();
+        setTotalClicks(data.count as number);
+      } catch (error) {
+        console.error("Error:", error);
+      }
+
+      const storedUsername = sessionStorage.getItem("username");
+      if (storedUsername) {
+        setUsername(storedUsername);
+        const prevUserClicks = parseInt(
+          sessionStorage.getItem("userClicks") ?? "0"
+        );
+        setUserClicks(prevUserClicks);
+      }
+    }
+
+    setup();
+  }, []);
+
+  /**
+   * Retrieves the number of clicks for a given user.
+   * @param user - The username of the user.
+   * @returns A Promise that resolves to the number of clicks for the user.
+   */
+  async function getUserClicks(user: string): Promise<number> {
+    try {
+      const response = await fetch("/api/userGiven", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          username: user,
+          cache: "no-cache",
+        },
+      });
+      const data = await response.json();
+      return Promise.resolve(data.count as number);
+    } catch (error) {
+      console.error("Error:", error);
+      return 0;
+    }
+  }
+
+  /**
+   * Handles the form submission event.
+   *
+   * @param event - The form submission event.
+   * @returns {Promise<void>}
+   */
+  async function handleSubmit(
+    event: React.FormEvent<HTMLFormElement>
+  ): Promise<void> {
+    event.preventDefault();
+    const form = event.currentTarget as HTMLFormElement;
+    const formData = new FormData(form);
+    const uname = formData.get("username") as string;
+    if (uname === "admin") {
+      router.push("/admin");
+      return;
+    } else if (uname === "") {
+      alert("Please enter a username!");
+      return;
+    }
+    setUsername(uname);
+    sessionStorage.setItem("username", uname);
+    const numUserClicks = await getUserClicks(uname);
+    // console.log(numUserClicks)
+    setUserClicks(numUserClicks);
+    sessionStorage.setItem("userClicks", numUserClicks.toString());
+  }
+
+  /**
+   * Handles the click event and performs the necessary actions.
+   * @returns {Promise<void>} A promise that resolves when the click event is handled.
+   */
+  async function handleClick() {
+    const body = JSON.stringify({ username: username, time: Date.now() });
+    try {
+      // get the number of clicks for the user
+      await fetch("/api/userGiven", {
+        method: "POST",
+        body: body,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      // type cast userClicks to number when applicable
+      if (typeof userClicks === "string") {
+        const numUserClicks = parseInt(userClicks);
+        setUserClicks(numUserClicks + 1);
+        sessionStorage.setItem("userClicks", (numUserClicks + 1).toString());
+      } else {
+        setUserClicks(userClicks + 1);
+        sessionStorage.setItem("userClicks", (userClicks + 1).toString());
+      }
+      // increment the total number of clicks
+      setTotalClicks(totalClicks + 1);
+      sessionStorage.setItem("totalClicks", (totalClicks + 1).toString());
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  }
+
+  /**
+   * Handles the case when no username is set.
+   * Logs a message to the console and displays an alert to the user.
+   */
+  function handleNoUsername() {
+    // console.log("username not set");
+    alert("Enter a username before clicking the button!");
+  }
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:size-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <main className="flex min-h-screen flex-col items-center">
+      <HomeHeader />
+      <div className="text-center">
+        <form onSubmit={handleSubmit} className="space-x-2 p-4">
+          <label className="">Username:</label>
+          <input
+            name="username"
+            type="text"
+            className="border border-black rounded-md p-1 hover:border-ayr-logo-blue"
+            defaultValue={username}
+            placeholder="Enter username"
+            required
+          />
+          <button
+            type="submit"
+            className="rounded-md p-1 text-white bg-ayr-logo-blue hover:scale-105 active:bg-green active:text-black"
           >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
+            Submit
+          </button>
+        </form>
+
+        <div>
+          {username ? (
+            <div>
+              <h1 className="">Hello, {username}!</h1>
+              <h1>Your Clicks: {userClicks.toString()}</h1>
+            </div>
+          ) : (
+            <div>
+              <h1>Enter a username, then click the button!</h1>
+              <br />
+            </div>
+          )}
+        </div>
+
+        <div className="pt-10">
+          {username ? (
+            <button
+              onClick={handleClick}
+              className="border border-black rounded-md p-2 bg-ayr-logo-blue text-white active:bg-green active:text-black mb-10"
+            >
+              Click Me
+            </button>
+          ) : (
+            <button
+              onClick={handleNoUsername}
+              className="border border-black rounded-md p-2 bg-ayr-red"
+            >
+              Click Me
+            </button>
+          )}
+
+          <h1>Total Number of Clicks: {totalClicks}</h1>
         </div>
       </div>
-
-      <div className="relative z-[-1] flex place-items-center before:absolute before:h-[300px] before:w-full before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 sm:before:w-[480px] sm:after:w-[240px] before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:mb-0 lg:w-full lg:max-w-5xl lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-balance text-sm opacity-50">
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
+      <Footer />
     </main>
   );
 }

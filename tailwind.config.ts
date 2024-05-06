@@ -14,6 +14,14 @@ const config: Config = {
           "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
       },
     },
+    colors: {
+      "ayr-logo-blue": "#003464",
+      "ayr-logo-gray": "#848482",
+      "ayr-red": "#DD4443",
+      "white": "#FFFFFF",
+      "green": "#00FF00",
+      "black": "#000000",
+    }
   },
   plugins: [],
 };
