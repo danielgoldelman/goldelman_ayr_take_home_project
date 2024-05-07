@@ -17,9 +17,6 @@ export default function Home() {
      * @returns {Promise<void>}
      */
     async function setup(): Promise<void> {
-      window.addEventListener("beforeunload", () => {
-        sessionStorage.clear();
-      });
       try {
         const response = await fetch("/api/global", { cache: "no-cache" });
         const data = await response.json();

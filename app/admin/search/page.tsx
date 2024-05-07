@@ -11,9 +11,6 @@ export default function AdminForm() {
   const [times, setTimes] = useState<string[]>([]);
 
   useEffect(() => {
-    window.addEventListener("beforeunload", () => {
-      sessionStorage.clear();
-    });
     const user = sessionStorage.getItem("usernameAdmin");
     if (user) {
       setUsername(user);
